@@ -246,10 +246,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     color: AppColors.textMedium,
                   ),
                 ),
+                // APRÈS
                 TextButton(
                   onPressed: () {
-                    // Navigation vers Login
-                    // On ajoutera ça bientôt !
+                    // On revient en arrière
+                    // comme le bouton "back" du téléphone
+                    Navigator.pop(context);
                   },
                   child: const Text(
                     'Se connecter',

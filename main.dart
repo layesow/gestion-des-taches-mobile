@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tache_app/screens/login_screen.dart';
-import 'package:tache_app/screens/register_screen.dart';
+//import 'package:tache_app/screens/register_screen.dart';
 import 'utils/constants.dart';
-import 'screens/splash_screen.dart';
+//import 'screens/splash_screen.dart';
 
 // Point d'entrée de l'application
 // Comme index.php en PHP
@@ -30,7 +30,7 @@ class TacheApp extends StatelessWidget {
       ),
 
       // Premier écran = Splash Screen
-      home: const RegisterScreen(),
+      home: const LoginScreen(),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tache_app/screens/register_screen.dart';
 import '../utils/constants.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -276,8 +277,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 TextButton(
                   onPressed: () {
-                    // Navigation vers inscription
-                    // On ajoutera ça bientôt !
+                    // On navigue vers RegisterScreen
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RegisterScreen(),
+                      ),
+                    );
                   },
                   child: const Text(
                     'Créer un compte',
