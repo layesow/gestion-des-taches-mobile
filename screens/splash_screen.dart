@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
+import 'login_screen.dart'; // On va l'utiliser plus tard, pour l'instant on affiche un écran temporaire
 
 // =========================================
 // SPLASH SCREEN
@@ -42,7 +43,7 @@ class _SplashScreenState extends State<SplashScreen> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => const EcranTemporaire(),
+        builder: (context) => const LoginScreen(),
       ),
     );
   }
@@ -130,26 +131,3 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 }
 
-// =========================================
-// ÉCRAN TEMPORAIRE
-// (On va le remplacer par le vrai Login)
-// =========================================
-class EcranTemporaire extends StatelessWidget {
-  const EcranTemporaire({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text(
-          'Écran de Connexion\nbientôt disponible !',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 24,
-            color: AppColors.textDark,
-          ),
-        ),
-      ),
-    );
-  }
-}

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tache_app/screens/register_screen.dart';
 import '../utils/constants.dart';
+import 'main_screen.dart';
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -239,10 +241,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
               child: ElevatedButton(
                 onPressed: () {
-                  // Afficher ce que l'utilisateur a tapé
-                  // dans la console (pour tester)
-                  print('Email: ${_emailController.text}');
-                  print('Password: ${_passwordController.text}');
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const MainScreen(),
+                    ),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,

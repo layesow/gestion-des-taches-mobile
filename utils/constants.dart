@@ -18,6 +18,9 @@ class AppColors {
   // ⬜ Couleur de fond (blanc)
   static const Color background = Color(0xFFFFFFFF);
 
+  // ⬜ Couleur de fond clair (gris très clair)
+  static const Color backgroundLight = Color(0xFFF9FAFB);
+
   // 🔴 Priorité Élevée = Rouge
   static const Color priorityHigh = Color(0xFFEF4444);
 
@@ -26,5 +29,8 @@ class AppColors {
 
   // 🟢 Priorité Basse = Vert
   static const Color priorityLow = Color(0xFF10B981);
+
+  // ⬜ Couleur des bordures
+  static const Color border = Color(0xFFE5E7EB);
 
 }
