@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // URL de base de ton API Laravel
-  // ⚠️ IMPORTANT : Sur Android, utilise 10.0.2.2 au lieu de 127.0.0.1
+  // ⚠️ IMPORTANT : Sur Android, utilise 10.0.2.2 au lieu de 127.0.0.1 ou  localhost pour accéder à l'API qui tourne sur ta machine locale.
   static const String baseUrl = 'http://10.0.2.2:8000/api';
   
   // Headers par défaut

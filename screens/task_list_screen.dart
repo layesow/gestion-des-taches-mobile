@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
 import '../models/task_model.dart';
+import '../services/api/task_service.dart';  // ← AJOUTÉ
 import 'task_detail_screen.dart';
 
 
@@ -13,41 +14,39 @@ class TaskListScreen extends StatefulWidget {
 
 class _TaskListScreenState extends State<TaskListScreen> {
 
-  // ================================
-  // DONNÉES DE TEST
-  // Plus tard on récupérera ça de l'API Laravel
-  // ================================
-  final List<Task> tasks = [
-    Task(
-      id: '1',
-      title: 'Présentation Client K-Tech',
-      description: 'Finaliser les slides de la démo',
-      dateTime: DateTime.now().add(const Duration(hours: 3)),
-      priority: 'high',
-    ),
-    Task(
-      id: '2',
-      title: 'Revue d\'équipe',
-      description: 'Briefing hebdomadaire sur le sprint',
-      dateTime: DateTime.now().add(const Duration(days: 1)),
-      priority: 'medium',
-    ),
-    Task(
-      id: '3',
-      title: 'Mise à jour CRM',
-      description: 'Mettre à jour les contacts clients',
-      dateTime: DateTime.now().add(const Duration(days: 2)),
-      priority: 'low',
-      isCompleted: true,
-    ),
-    Task(
-      id: '4',
-      title: 'Facturation Q3',
-      description: 'Vérification des factures en attente',
-      dateTime: DateTime.now().add(const Duration(hours: 5)),
-      priority: 'high',
-    ),
-  ];
+  // ✅ NOUVEAU : Service et variables
+  final TaskService _taskService = TaskService();
+  List<Task> tasks = [];  // ← Liste vide au départ
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  // ✅ NOUVEAU : Charger au démarrage
+  @override
+  void initState() {
+    super.initState();
+    _loadTasks();
+  }
+
+  // ✅ NOUVEAU : Fonction pour charger les tâches
+  Future<void> _loadTasks() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final tasksData = await _taskService.getTasks();
+      setState(() {
+        tasks = tasksData.map((json) => Task.fromJson(json)).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+      });
+    }
+  }
 
   // ================================
   // FONCTION : Obtenir la couleur
@@ -76,11 +75,10 @@ class _TaskListScreenState extends State<TaskListScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        // elevation = ombre en bas de l'AppBar
+        automaticallyImplyLeading: false,
 
         title: const Row(
           children: [
-            // Photo de profil
             CircleAvatar(
               backgroundColor: AppColors.primary,
               child: Text(
@@ -94,7 +92,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
             SizedBox(width: 12),
 
-            // Nom et salutation
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -119,7 +116,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
         ),
 
         actions: [
-          // Icône notification
           IconButton(
             icon: const Icon(
               Icons.notifications_outlined,
@@ -128,7 +124,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
             onPressed: () {},
           ),
 
-          // Icône menu
           IconButton(
             icon: const Icon(
               Icons.more_vert,
@@ -153,7 +148,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
 
-                // Titre "Mes tâches"
                 const Text(
                   'Mes tâches',
                   style: TextStyle(
@@ -165,7 +159,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                 const SizedBox(height: 16),
 
-                // Barre de recherche
                 TextField(
                   decoration: InputDecoration(
                     hintText: 'Rechercher une tâche...',
@@ -184,7 +177,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                 const SizedBox(height: 16),
 
-                // Filtre "EN COURS"
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -211,29 +203,91 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
           // ================================
           // LISTE DES TÂCHES
+          // ✅ MODIFIÉ : Affichage conditionnel
           // ================================
           Expanded(
-            // Expanded = prend tout l'espace disponible
-            child: ListView.builder(
-              // ListView.builder = liste scrollable
-              // C'est comme un foreach en PHP !
-              
-              padding: const EdgeInsets.all(16),
-              itemCount: tasks.length,
-              // itemCount = nombre d'éléments
-
-              itemBuilder: (context, index) {
-                // itemBuilder = fonction qui construit
-                // chaque élément de la liste
-                // index = 0, 1, 2, 3...
-
-                final task = tasks[index];
-                // On récupère la tâche à l'index
-
-                return _buildTaskCard(task);
-                // On construit la carte de la tâche
-              },
-            ),
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.primary,
+                    ),
+                  )
+                : _errorMessage != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.error_outline,
+                              size: 64,
+                              color: AppColors.priorityHigh,
+                            ),
+                            const SizedBox(height: 16),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 32),
+                              child: Text(
+                                _errorMessage!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: AppColors.textMedium,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _loadTasks,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                              ),
+                              child: const Text(
+                                'Réessayer',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : tasks.isEmpty
+                        ? const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.task_outlined,
+                                  size: 64,
+                                  color: AppColors.textMedium,
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  'Aucune tâche pour le moment',
+                                  style: TextStyle(
+                                    color: AppColors.textMedium,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Appuyez sur + pour ajouter une tâche',
+                                  style: TextStyle(
+                                    color: AppColors.textMedium,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : RefreshIndicator(
+                            onRefresh: _loadTasks,
+                            child: ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: tasks.length,
+                              itemBuilder: (context, index) {
+                                final task = tasks[index];
+                                return _buildTaskCard(task);
+                              },
+                            ),
+                          ),
           ),
         ],
       ),
@@ -246,8 +300,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
   Widget _buildTaskCard(Task task) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      // margin = espace extérieur
-
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -259,115 +311,86 @@ class _TaskListScreenState extends State<TaskListScreen> {
           ),
         ],
       ),
-
-      
-      child: InkWell(
-        // InkWell = rend cliquable avec effet d'onde
-        onTap: () {
-          // Navigation vers les détails
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => TaskDetailScreen(task: task),
-            ),
-          );
-        },
-
-        borderRadius: BorderRadius.circular(12),
-
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-
-              // Barre de couleur selon priorité
-              Container(
-                width: 4,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: _getPriorityColor(task.priority),
-                  borderRadius: BorderRadius.circular(2),
+      // IMPORTANT : On utilise IntrinsicHeight pour que la Row sache quelle hauteur prendre
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch, // Force la barre à s'étirer
+          children: [
+            // 1. LA BARRE (Placée AVANT le padding)
+            Container(
+              width: 6,
+              decoration: BoxDecoration(
+                color: _getPriorityColor(task.priority),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  bottomLeft: Radius.circular(12),
                 ),
               ),
+            ),
 
-              const SizedBox(width: 12),
-
-              // Contenu de la tâche
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            // 2. LE RESTE DU CONTENU (Dans un Expanded avec son propre Padding)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16), // On remet le padding ici
+                child: Row(
                   children: [
-
-                    // Titre
-                    Text(
-                      task.title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textDark,
-                        decoration: task.isCompleted
-                            ? TextDecoration.lineThrough
-                            : null,
-                        // lineThrough = barré si terminé
-                      ),
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    // Description
-                    Text(
-                      task.description,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textMedium,
-                        decoration: task.isCompleted
-                            ? TextDecoration.lineThrough
-                            : null,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      // ellipsis = "..." si trop long
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    // Date et heure
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.access_time,
-                          size: 16,
-                          color: AppColors.textMedium,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          task.getFormattedDate(),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textMedium,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            task.title,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textDark,
+                              decoration: task.isCompleted ? TextDecoration.lineThrough : null,
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          Text(
+                            task.description,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textMedium,
+                              decoration: task.isCompleted ? TextDecoration.lineThrough : null,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const Icon(Icons.access_time, size: 16, color: AppColors.textMedium),
+                              const SizedBox(width: 4),
+                              Text(
+                                task.getFormattedDate(),
+                                style: const TextStyle(fontSize: 12, color: AppColors.textMedium),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
 
+                    // La Checkbox
+                    Checkbox(
+                      value: task.isCompleted,
+                      onChanged: (bool? value) async {
+                        try {
+                          await _taskService.toggleTaskComplete(task.id);
+                          _loadTasks();
+                        } catch (e) {
+                          // Gestion erreur
+                        }
+                      },
+                      activeColor: AppColors.primary,
+                    ),
                   ],
                 ),
               ),
-
-              // Checkbox
-              Checkbox(
-                value: task.isCompleted,
-                onChanged: (bool? value) {
-                  setState(() {
-                    // On changera ça plus tard
-                    // pour modifier vraiment la tâche
-                  });
-                },
-                activeColor: AppColors.primary,
-              ),
-
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

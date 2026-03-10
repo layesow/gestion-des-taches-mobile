@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'main_screen.dart';
 import '../utils/constants.dart';
+//import '../services/api_service.dart';  // ← AJOUTE en haut
+import '../services/api/auth_service.dart';
+
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -9,6 +13,10 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+
+  //final ApiService _apiService = ApiService();  // ← AJOUTE
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;  // ← AJOUTE
 
   // Les controllers pour chaque champ
   final TextEditingController _nomController = 
@@ -213,12 +221,65 @@ class _RegisterScreenState extends State<RegisterScreen> {
               width: double.infinity,
               height: 56,
               child: ElevatedButton(
-                onPressed: () {
-                  // On affiche dans la console pour tester
-                  print('Nom: ${_nomController.text}');
-                  print('Tel: ${_telephoneController.text}');
-                  print('Email: ${_emailController.text}');
-                  print('Password: ${_passwordController.text}');
+                onPressed: _isLoading ? null : () async {
+                  // Validation
+                  if (_nomController.text.isEmpty ||
+                      _emailController.text.isEmpty ||
+                      _passwordController.text.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Veuillez remplir tous les champs obligatoires'),
+                        backgroundColor: AppColors.priorityHigh,
+                      ),
+                    );
+                    return;
+                  }
+
+                  setState(() {
+                    _isLoading = true;
+                  });
+
+                  try {
+                    // Appel API
+                    final result = await _authService.register(
+                      name: _nomController.text,
+                      email: _emailController.text,
+                      phone: _telephoneController.text,
+                      password: _passwordController.text,
+                    );
+
+                    if (mounted) {
+                      // Succès - navigation vers MainScreen
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MainScreen(),
+                        ),
+                      );
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Bienvenue ${result['user']['name']} !'),
+                          backgroundColor: AppColors.priorityLow,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(e.toString().replaceAll('Exception: ', '')),
+                          backgroundColor: AppColors.priorityHigh,
+                        ),
+                      );
+                    }
+                  } finally {
+                    if (mounted) {
+                      setState(() {
+                        _isLoading = false;
+                      });
+                    }
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
@@ -226,14 +287,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'S\'inscrire →',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        'S\'inscrire →',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
             ),
 

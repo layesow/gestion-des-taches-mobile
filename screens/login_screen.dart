@@ -3,6 +3,9 @@ import 'package:tache_app/screens/register_screen.dart';
 import '../utils/constants.dart';
 import 'main_screen.dart';
 import 'forgot_password_screen.dart';
+//import '../services/api_service.dart';  // ← AJOUTE en haut
+import '../services/api/auth_service.dart';
+
 
 
 class LoginScreen extends StatefulWidget {
@@ -13,6 +16,12 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+
+  //final ApiService _apiService = ApiService();  // ← AJOUTE cette ligne
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;  // ← AJOUTE cette ligne
+
+
 
   // ================================
   // VARIABLES
@@ -247,13 +256,61 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 56,
 
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const MainScreen(),
-                    ),
-                  );
+                onPressed: _isLoading ? null : () async {
+                  // Validation
+                  if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Veuillez remplir tous les champs'),
+                        backgroundColor: AppColors.priorityHigh,
+                      ),
+                    );
+                    return;
+                  }
+
+                  setState(() {
+                    _isLoading = true;
+                  });
+
+                  try {
+                    // Appel API
+                    final result = await _authService.login(
+                      email: _emailController.text,
+                      password: _passwordController.text,
+                    );
+
+                    if (mounted) {
+                      // Succès - navigation vers MainScreen
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MainScreen(),
+                        ),
+                      );
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Bienvenue ${result['user']['name']} !'),
+                          backgroundColor: AppColors.priorityLow,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(e.toString().replaceAll('Exception: ', '')),
+                          backgroundColor: AppColors.priorityHigh,
+                        ),
+                      );
+                    }
+                  } finally {
+                    if (mounted) {
+                      setState(() {
+                        _isLoading = false;
+                      });
+                    }
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
@@ -261,15 +318,25 @@ class _LoginScreenState extends State<LoginScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'Se connecter →',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        'Se connecter →',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
+
             ),
 
             const SizedBox(height: 24),

@@ -23,6 +23,32 @@ class Task {
     this.isCompleted = false,  // Par défaut non terminée
   });
 
+    // ✅ AJOUTE CETTE FONCTION
+  // Créer un Task depuis JSON (venant de l'API Laravel)
+  factory Task.fromJson(Map<String, dynamic> json) {
+    return Task(
+      id: json['id'].toString(),
+      title: json['title'],
+      description: json['description'] ?? '',
+      dateTime: DateTime.parse(json['date_time']),
+      priority: json['priority'],
+      isCompleted: json['is_completed'] ?? false,
+    );
+  }
+
+  // ✅ AJOUTE CETTE FONCTION
+  // Convertir un Task en JSON (pour envoyer à l'API)
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'date_time': dateTime.toIso8601String(),
+      'priority': priority,
+      'is_completed': isCompleted,
+    };
+  }
+
   // Fonction pour obtenir la couleur selon la priorité
   // On va l'utiliser pour afficher la barre colorée
   String getPriorityColor() {
