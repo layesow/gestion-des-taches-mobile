@@ -34,82 +34,117 @@ class _MainScreenState extends State<MainScreen> {
       body: _screens[_currentIndex],
 
       // ================================
-      // BOUTON FLOTTANT (en bas à droite)
+      // BOUTON FLOTTANT AU MILIEU
       // ================================
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddTaskScreen(),
-            ),
-          );
-        },
-        backgroundColor: AppColors.primary,
-        elevation: 6,
-        child: const Icon(
-          Icons.add,
-          size: 32,
-          color: Colors.white,
-        ),
-      ),
-
-      // ================================
-      // BOTTOM NAVIGATION BAR (simple, sans encoche)
-      // ================================
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
+      floatingActionButton: Padding(
+        // Ajuste la valeur (ici 20) pour le faire descendre plus ou moins
+        padding: const EdgeInsets.only(top: 40), 
+        child: FloatingActionButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const AddTaskScreen(),
+              ),
+            ).then((_) {
+              setState(() {
+                _currentIndex = 0;
+              });
             });
           },
-
-          // Style
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textMedium,
-          selectedFontSize: 12,
-          unselectedFontSize: 12,
-          elevation: 0,
-
-          items: const [
-            // 📋 Tâches
-            BottomNavigationBarItem(
-              icon: Icon(Icons.task_alt),
-              label: 'Tâches',
-            ),
-
-            // 📊 Statistiques
-            BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart),
-              label: 'Stats',
-            ),
-
-            // 👤 Profil
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person),
-              label: 'Profil',
-            ),
-
-            // ⚙️ Plus
-            BottomNavigationBarItem(
-              icon: Icon(Icons.menu),
-              label: 'Plus',
-            ),
-          ],
+          backgroundColor: AppColors.primary,
+          elevation: 8,
+          child: const Icon(
+            Icons.add,
+            size: 32,
+            color: Colors.white,
+          ),
         ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      // ================================
+      // BOTTOM APP BAR avec encoche
+      // ================================
+      bottomNavigationBar: BottomAppBar(
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 8,
+        color: Colors.white,
+        elevation: 10,
+        child: SizedBox(
+          height: 60,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              // 📋 Tâches
+              _buildNavItem(
+                icon: Icons.task_alt,
+                label: 'Tâches',
+                index: 0,
+              ),
+
+              // 📊 Stats
+              _buildNavItem(
+                icon: Icons.bar_chart,
+                label: 'Stats',
+                index: 1,
+              ),
+
+              // Espace pour le FAB
+              const SizedBox(width: 40),
+
+              // 👤 Profil
+              _buildNavItem(
+                icon: Icons.person,
+                label: 'Profil',
+                index: 2,
+              ),
+
+              // ⚙️ Plus
+              _buildNavItem(
+                icon: Icons.menu,
+                label: 'Plus',
+                index: 3,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Fonction pour construire un élément de navigation
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required int index,
+  }) {
+    final isSelected = _currentIndex == index;
+
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _currentIndex = index;
+        });
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            color: isSelected ? AppColors.primary : AppColors.textMedium,
+            size: 24,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: isSelected ? AppColors.primary : AppColors.textMedium,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            ),
+          ),
+        ],
       ),
     );
   }
