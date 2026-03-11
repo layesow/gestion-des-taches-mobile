@@ -15,104 +15,82 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
 
-  // Index de l'onglet actuel
   int _currentIndex = 0;
-
-  // Liste des écrans
-  final List<Widget> _screens = [
-    const TaskListScreen(),    // 📋 Tâches
-    const StatsScreen(),       // 📊 Statistiques  
-    const ProfileScreen(),     // 👤 Profil
-    const SettingsScreen(),    // ⚙️ Plus/Paramètres
-  ];
 
   @override
   Widget build(BuildContext context) {
+    // 5 écrans
+    final List<Widget> screens = [
+      TaskListScreen(key: UniqueKey()),
+      const StatsScreen(),
+      const AddTaskScreen(),       // ← Au milieu
+      const ProfileScreen(),
+      const SettingsScreen(),
+    ];
+
     return Scaffold(
       
-      // Le contenu change selon l'onglet
-      body: _screens[_currentIndex],
+      body: screens[_currentIndex],
 
       // ================================
-      // BOUTON FLOTTANT AU MILIEU
+      // BOTTOM NAVIGATION BAR (5 items)
       // ================================
-      floatingActionButton: Padding(
-        // Ajuste la valeur (ici 20) pour le faire descendre plus ou moins
-        padding: const EdgeInsets.only(top: 40), 
-        child: FloatingActionButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const AddTaskScreen(),
-              ),
-            ).then((_) {
-              setState(() {
-                _currentIndex = 0;
-              });
-            });
-          },
-          backgroundColor: AppColors.primary,
-          elevation: 8,
-          child: const Icon(
-            Icons.add,
-            size: 32,
-            color: Colors.white,
-          ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
         ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      // ================================
-      // BOTTOM APP BAR avec encoche
-      // ================================
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
-        color: Colors.white,
-        elevation: 10,
-        child: SizedBox(
-          height: 60,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              // 📋 Tâches
-              _buildNavItem(
-                icon: Icons.task_alt,
-                label: 'Tâches',
-                index: 0,
-              ),
+        child: SafeArea(
+          child: SizedBox(
+            height: 70,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                // 📋 Tâches
+                _buildNavItem(
+                  icon: Icons.task_alt,
+                  label: 'Tâches',
+                  index: 0,
+                ),
 
-              // 📊 Stats
-              _buildNavItem(
-                icon: Icons.bar_chart,
-                label: 'Stats',
-                index: 1,
-              ),
+                // 📊 Stats
+                _buildNavItem(
+                  icon: Icons.bar_chart,
+                  label: 'Stats',
+                  index: 1,
+                ),
 
-              // Espace pour le FAB
-              const SizedBox(width: 40),
+                // ➕ Ajouter (au milieu, en primaire)
+                _buildAddButton(),
 
-              // 👤 Profil
-              _buildNavItem(
-                icon: Icons.person,
-                label: 'Profil',
-                index: 2,
-              ),
+                // 👤 Profil
+                _buildNavItem(
+                  icon: Icons.person,
+                  label: 'Profil',
+                  index: 3,
+                ),
 
-              // ⚙️ Plus
-              _buildNavItem(
-                icon: Icons.menu,
-                label: 'Plus',
-                index: 3,
-              ),
-            ],
+                // ⚙️ Plus
+                _buildNavItem(
+                  icon: Icons.menu,
+                  label: 'Plus',
+                  index: 4,
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // Fonction pour construire un élément de navigation
+  // Bouton de navigation normal
   Widget _buildNavItem({
     required IconData icon,
     required String label,
@@ -126,26 +104,70 @@ class _MainScreenState extends State<MainScreen> {
           _currentIndex = index;
         });
       },
+      child: SizedBox(
+        width: 70,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? AppColors.primary : AppColors.textMedium,
+              size: 24,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: isSelected ? AppColors.primary : AppColors.textMedium,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Bouton "Ajouter" spécial (toujours en primaire)
+Widget _buildAddButton() {
+  return InkWell(
+    onTap: () async {  // ← AJOUTE async
+      // ✅ Naviguer vers AddTaskScreen (pas changer l'index)
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const AddTaskScreen(),
+        ),
+      );
+      
+      // ✅ Après retour, revenir à l'onglet Tâches
+      setState(() {
+        _currentIndex = 0;
+      });
+    },
+    child: SizedBox(
+      width: 70,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            color: isSelected ? AppColors.primary : AppColors.textMedium,
-            size: 24,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: isSelected ? AppColors.primary : AppColors.textMedium,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: const BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.add,
+              color: Colors.white,
+              size: 28,
             ),
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

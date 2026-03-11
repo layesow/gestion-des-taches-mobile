@@ -298,40 +298,49 @@ class _TaskListScreenState extends State<TaskListScreen> {
   // FONCTION : Construire une carte de tâche
   // ================================
   Widget _buildTaskCard(Task task) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      // IMPORTANT : On utilise IntrinsicHeight pour que la Row sache quelle hauteur prendre
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch, // Force la barre à s'étirer
-          children: [
-            // 1. LA BARRE (Placée AVANT le padding)
-            Container(
-              width: 6,
-              decoration: BoxDecoration(
-                color: _getPriorityColor(task.priority),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  bottomLeft: Radius.circular(12),
-                ),
+  return Container(
+    margin: const EdgeInsets.only(bottom: 12),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 10,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 1. LA BARRE
+          Container(
+            width: 6,
+            decoration: BoxDecoration(
+              color: _getPriorityColor(task.priority),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                bottomLeft: Radius.circular(12),
               ),
             ),
+          ),
 
-            // 2. LE RESTE DU CONTENU (Dans un Expanded avec son propre Padding)
-            Expanded(
+          // 2. LE RESTE DU CONTENU
+          Expanded(
+            child: InkWell(  // ← AJOUTE ICI
+              onTap: () {
+                print('🔵 Tâche cliquée : ${task.title}');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => TaskDetailScreen(task: task),
+                  ),
+                ).then((_) => _loadTasks());
+              },
               child: Padding(
-                padding: const EdgeInsets.all(16), // On remet le padding ici
+                padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
                     Expanded(
@@ -373,7 +382,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                       ),
                     ),
 
-                    // La Checkbox
+                    // Checkbox
                     Checkbox(
                       value: task.isCompleted,
                       onChanged: (bool? value) async {
@@ -381,7 +390,14 @@ class _TaskListScreenState extends State<TaskListScreen> {
                           await _taskService.toggleTaskComplete(task.id);
                           _loadTasks();
                         } catch (e) {
-                          // Gestion erreur
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(e.toString().replaceAll('Exception: ', '')),
+                                backgroundColor: AppColors.priorityHigh,
+                              ),
+                            );
+                          }
                         }
                       },
                       activeColor: AppColors.primary,
@@ -390,9 +406,10 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

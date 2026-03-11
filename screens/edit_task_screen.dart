@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
 import '../models/task_model.dart';
+import '../services/api/task_service.dart';  // ← AJOUTE
+
 
 class EditTaskScreen extends StatefulWidget {
   // On reçoit la tâche à modifier
@@ -16,6 +18,9 @@ class EditTaskScreen extends StatefulWidget {
 }
 
 class _EditTaskScreenState extends State<EditTaskScreen> {
+
+  final TaskService _taskService = TaskService();  // ← AJOUTE pour pouvoir appeler l'API
+  bool _isLoading = false;  // ← AJOUTE pour gérer l'état de chargement
 
   // Controllers avec les valeurs de la tâche existante
   late TextEditingController _titleController;
@@ -84,17 +89,22 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
   }
 
   // Mettre à jour la tâche
-  void _updateTask() {
-    if (_titleController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Le titre est obligatoire'),
-          backgroundColor: AppColors.priorityHigh,
-        ),
-      );
-      return;
-    }
+Future<void> _updateTask() async {
+  if (_titleController.text.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Le titre est obligatoire'),
+        backgroundColor: AppColors.priorityHigh,
+      ),
+    );
+    return;
+  }
 
+  setState(() {
+    _isLoading = true;
+  });
+
+  try {
     // Combiner date et heure
     final dateTime = DateTime(
       _selectedDate.year,
@@ -104,33 +114,48 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
       _selectedTime.minute,
     );
 
-    // Créer la tâche mise à jour
-    final updatedTask = Task(
+    // ✅ Appel API pour modifier
+    await _taskService.updateTask(
       id: widget.task.id,
       title: _titleController.text,
       description: _descriptionController.text,
       dateTime: dateTime,
       priority: _selectedPriority,
-      isCompleted: widget.task.isCompleted,
     );
 
-    // Pour l'instant on affiche juste
-    print('Tâche mise à jour:');
-    print('ID: ${updatedTask.id}');
-    print('Titre: ${updatedTask.title}');
-    print('Priorité: ${updatedTask.priority}');
+    if (mounted) {
+      // Succès - retour en arrière
+      Navigator.pop(context, true);  // On peut passer "true" pour indiquer que la tâche a été modifiée
 
-    // Revenir en arrière
-    Navigator.pop(context);
-
-    // Message de succès
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Tâche modifiée avec succès !'),
-        backgroundColor: AppColors.priorityLow,
-      ),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Tâche modifiée avec succès !'),
+          backgroundColor: AppColors.priorityLow,
+          behavior: SnackBarBehavior.floating, // important pour qu’il flotte au-dessus du FAB
+          margin: const EdgeInsets.all(16),     // optionnel : espace autour
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: AppColors.priorityHigh,
+        ),
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -369,21 +394,30 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                   child: SizedBox(
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: _updateTask,
+                      onPressed: _isLoading ? null : _updateTask,  // ← CHANGE ICI
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'Enregistrer',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
+                      child: _isLoading  // ← AJOUTE ÇA
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'Enregistrer',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                     ),
                   ),
                 ),

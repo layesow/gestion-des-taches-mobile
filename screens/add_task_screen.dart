@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
 import '../models/task_model.dart';
+import '../services/api/task_service.dart';  // ← AJOUTE CETTE LIGNE
 
 class AddTaskScreen extends StatefulWidget {
   const AddTaskScreen({super.key});
+
+
 
   @override
   State<AddTaskScreen> createState() => _AddTaskScreenState();
 }
 
 class _AddTaskScreenState extends State<AddTaskScreen> {
+
+  final TaskService _taskService = TaskService();  // ← AJOUTE
+  bool _isLoading = false;  // ← AJOUTE
+
 
   // ================================
   // CONTROLLERS
@@ -79,7 +86,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   // ================================
   // FONCTION : Créer la tâche
   // ================================
-  void _createTask() {
+  Future<void> _createTask() async {
     // Vérifier que tous les champs sont remplis
     if (_titleController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -101,42 +108,61 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       return;
     }
 
-    // Combiner date et heure
-    final dateTime = DateTime(
-      _selectedDate!.year,
-      _selectedDate!.month,
-      _selectedDate!.day,
-      _selectedTime!.hour,
-      _selectedTime!.minute,
-    );
+    setState(() {
+      _isLoading = true;
+    });
 
-    // Créer la tâche
-    final newTask = Task(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: _titleController.text,
-      description: _descriptionController.text,
-      dateTime: dateTime,
-      priority: _selectedPriority,
-    );
+    try {
+      // Combiner date et heure
+      final dateTime = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _selectedTime!.hour,
+        _selectedTime!.minute,
+      );
 
-    // Pour l'instant on affiche juste dans la console
-    // Plus tard on enverra à l'API Laravel
-    print('Nouvelle tâche créée:');
-    print('Titre: ${newTask.title}');
-    print('Description: ${newTask.description}');
-    print('Date: ${newTask.getFormattedDate()}');
-    print('Priorité: ${newTask.priority}');
+      // Appel API
+      await _taskService.createTask(
+        title: _titleController.text,
+        description: _descriptionController.text,
+        dateTime: dateTime,
+        priority: _selectedPriority,
+      );
 
-    // Revenir en arrière
-    Navigator.pop(context);
+      if (mounted) {
+        // Succès - retour en arrière
+        Navigator.pop(context, true);  // On peut passer "true" pour indiquer que la tâche a été créée
+        
 
-    // Afficher un message de succès
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Tâche créée avec succès !'),
-        backgroundColor: AppColors.priorityLow,
-      ),
-    );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Tâche créée avec succès !'),
+            backgroundColor: AppColors.priorityLow,
+            behavior: SnackBarBehavior.floating, // important pour qu’il flotte au-dessus du FAB
+            margin: const EdgeInsets.all(16),     // optionnel : espace autour
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+          ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: AppColors.priorityHigh,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -385,14 +411,23 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'Créer la tâche',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+                child: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      'Créer la tâche',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
               ),
             ),
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tache_app/screens/edit_task_screen.dart';
+import '../services/api/task_service.dart';
 import '../utils/constants.dart';
 import '../models/task_model.dart';
 
@@ -85,7 +86,10 @@ class TaskDetailScreen extends StatelessWidget {
                 MaterialPageRoute(
                   builder: (context) => EditTaskScreen(task: task),
                 ),
-              );
+              ).then((_) {
+                // Après modification, retour à la liste
+                Navigator.pop(context);
+              });
             },
           ),
 
@@ -96,8 +100,63 @@ class TaskDetailScreen extends StatelessWidget {
               color: AppColors.priorityHigh,
             ),
             onPressed: () {
-              // Supprimer la tâche
-              // On fera ça plus tard !
+              final rootContext = context; // context de TaskDetailScreen
+
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Supprimer la tâche'),
+                  content: const Text(
+                      'Êtes-vous sûr de vouloir supprimer cette tâche ?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context); // ferme dialog
+                      },
+                      child: const Text('Annuler'),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        Navigator.pop(context); // ferme dialog
+
+                        try {
+                          await TaskService().deleteTask(task.id);
+
+                          if (rootContext.mounted) {
+                            
+                            // ✅ Ferme TaskDetailScreen ET passe `true` pour indiquer succès
+                            Navigator.pop(rootContext, true);
+                            
+                            // ✅ Attendre un peu pour que UniqueKey fasse effet
+                            await Future.delayed(const Duration(milliseconds: 100));
+
+                            ScaffoldMessenger.of(rootContext).showSnackBar(
+                              const SnackBar(
+                                content: Text('Tâche supprimée avec succès'),
+                                backgroundColor: AppColors.priorityLow,
+                              ),
+                            );
+                          }
+
+                        } catch (e) {
+                          if (rootContext.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(e.toString().replaceAll('Exception: ', '')),
+                                backgroundColor: AppColors.priorityHigh,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      child: const Text(
+                        'Supprimer',
+                        style: TextStyle(color: AppColors.priorityHigh),
+                      ),
+                    ),
+                  ],
+                ),
+              );
             },
           ),
         ],
