@@ -1,9 +1,22 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
+import '../services/api/auth_service.dart';  // ← AJOUTÉ
 import 'change_password_screen.dart';
 
 class EditProfileScreen extends StatefulWidget {
-  const EditProfileScreen({super.key});
+  // ================================
+  // Reçoit les données actuelles
+  // ================================
+  final String currentName;
+  final String currentEmail;
+  final String currentPhone;
+
+  const EditProfileScreen({
+    super.key,
+    required this.currentName,
+    required this.currentEmail,
+    required this.currentPhone,
+  });
 
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
@@ -11,28 +24,120 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
 
-  // Controllers avec les valeurs actuelles
-  final TextEditingController _nameController = 
-      TextEditingController(text: 'Laye SOW');
-  final TextEditingController _emailController = 
-      TextEditingController(text: 'layesow@gmail.com');
-  final TextEditingController _phoneController = 
-      TextEditingController(text: '+221 77 000 00 00');
+  // ================================
+  // Service API et état de chargement
+  // ================================
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;
 
-  void _saveProfile() {
-    // Plus tard on enverra à l'API Laravel
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Profil mis à jour avec succès !'),
-        backgroundColor: AppColors.priorityLow,
-      ),
-    );
+  // ================================
+  // Controllers pré-remplis avec les valeurs actuelles
+  // ================================
+  late TextEditingController _nameController;
+  late TextEditingController _emailController;
+  late TextEditingController _phoneController;
 
-    Navigator.pop(context);
+  @override
+  void initState() {
+    super.initState();
+    // Pré-remplir avec les données reçues
+    _nameController = TextEditingController(text: widget.currentName);
+    _emailController = TextEditingController(text: widget.currentEmail);
+    _phoneController = TextEditingController(text: widget.currentPhone);
   }
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  // ================================
+  // Fonction pour obtenir les initiales
+  // ================================
+  String _getInitials() {
+    if (widget.currentName.isEmpty) return '?';
+    
+    final parts = widget.currentName.trim().split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return widget.currentName[0].toUpperCase();
+  }
+
+  // ================================
+  // Sauvegarder le profil
+  // ================================
+  Future<void> _saveProfile() async {
+    // Validation
+    if (_nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Le nom est obligatoire'),
+          backgroundColor: AppColors.priorityHigh,
+        ),
+      );
+      return;
+    }
+
+    if (_emailController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('L\'email est obligatoire'),
+          backgroundColor: AppColors.priorityHigh,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Appel API pour mettre à jour le profil
+      await _authService.updateProfile(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        phone: _phoneController.text.trim(),
+      );
+
+      if (mounted) {
+        // Message de succès
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profil mis à jour avec succès !'),
+            backgroundColor: AppColors.priorityLow,
+          ),
+        );
+
+        // Retour en arrière (le profil se rechargera)
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: AppColors.priorityHigh,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // ================================
+  // Changer la photo (fonctionnalité future)
+  // ================================
   void _changePhoto() {
-    // Plus tard on ouvrira la galerie/caméra
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Fonctionnalité bientôt disponible'),
@@ -46,6 +151,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
 
+      // ================================
+      // BARRE DU HAUT
+      // ================================
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -71,7 +179,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         child: Column(
           children: [
 
-            // En-tête avec photo
+            // ================================
+            // EN-TÊTE AVEC PHOTO
+            // ================================
             Container(
               color: Colors.white,
               padding: const EdgeInsets.all(32),
@@ -84,9 +194,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       CircleAvatar(
                         radius: 50,
                         backgroundColor: AppColors.primary,
-                        child: const Text(
-                          'LS',
-                          style: TextStyle(
+                        child: Text(
+                          _getInitials(),  // ← Initiales dynamiques
+                          style: const TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -137,7 +247,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
             const SizedBox(height: 16),
 
-            // Formulaire
+            // ================================
+            // FORMULAIRE
+            // ================================
             Container(
               color: Colors.white,
               padding: const EdgeInsets.all(20),
@@ -247,7 +359,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
             const SizedBox(height: 16),
 
-            // Section Sécurité
+            // ================================
+            // SECTION SÉCURITÉ
+            // ================================
             Container(
               color: Colors.white,
               padding: const EdgeInsets.all(20),
@@ -309,7 +423,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
             const SizedBox(height: 32),
 
-            // Boutons
+            // ================================
+            // BOUTONS
+            // ================================
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -320,21 +436,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: _saveProfile,
+                      onPressed: _isLoading ? null : _saveProfile,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'Enregistrer les modifications',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'Enregistrer les modifications',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                     ),
                   ),
 

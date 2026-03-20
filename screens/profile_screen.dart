@@ -279,11 +279,17 @@ Future<void> _loadUserData() async {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const EditProfileScreen(),
+                                    builder: (context) => EditProfileScreen(  // ← Passe les données
+                                      currentName: _name,
+                                      currentEmail: _email,
+                                      currentPhone: _phone,
+                                    ),
                                   ),
-                                ).then((_) {
-                                  // Recharger les données après modification
-                                  _loadUserData();
+                                ).then((updated) {
+                                  // Recharger si modification effectuée
+                                  if (updated == true) {
+                                    _loadUserData();
+                                  }
                                 });
                               },
                               style: ElevatedButton.styleFrom(
