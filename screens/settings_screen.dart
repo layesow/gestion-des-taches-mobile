@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:tache_app/services/api/auth_service.dart';
+import 'package:tache_app/services/storage/token_storage.dart';
 import '../utils/constants.dart';
 import 'login_screen.dart';
 import 'notifications_settings_screen.dart';
@@ -113,36 +115,67 @@ class SettingsScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Déconnexion
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const LoginScreen(),
+                  onPressed: () async {
+                    // Afficher une confirmation
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Déconnexion'),
+                        content: const Text('Êtes-vous sûr de vouloir vous déconnecter ?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Annuler'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text(
+                              'Déconnexion',
+                              style: TextStyle(color: AppColors.priorityHigh),
+                            ),
+                          ),
+                        ],
                       ),
-                      (route) => false,
                     );
+
+                    // Si l'utilisateur a confirmé
+                    if (confirmed == true && context.mounted) {
+                      try {
+                        // Appel API pour logout (invalide le token côté serveur)
+                        await AuthService().logout();
+                      } catch (e) {
+                        // Même si l'API échoue, on déconnecte quand même
+                        print('Erreur logout API: $e');
+                      }
+
+                      // Supprimer le token local
+                      await TokenStorage.deleteToken();
+
+                      if (context.mounted) {
+                        // Retour au LoginScreen (supprime toutes les pages précédentes)
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LoginScreen(),
+                          ),
+                          (route) => false,
+                        );
+                      }
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.priorityHigh,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.logout, color: Colors.white),
-                      SizedBox(width: 8),
-                      Text(
-                        'Déconnexion',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
+                  child: const Text(
+                    'Déconnexion',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
