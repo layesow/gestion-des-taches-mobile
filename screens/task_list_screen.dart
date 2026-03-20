@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
 import '../models/task_model.dart';
-import '../services/api/task_service.dart';  // ← AJOUTÉ
+import '../services/api/task_service.dart';
 import 'task_detail_screen.dart';
 
-
+// ================================
+// ÉCRAN : Liste des tâches
+// Affiche toutes les tâches avec recherche
+// ================================
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({super.key});
 
@@ -14,33 +17,61 @@ class TaskListScreen extends StatefulWidget {
 
 class _TaskListScreenState extends State<TaskListScreen> {
 
-  // ✅ NOUVEAU : Service et variables
-  final TaskService _taskService = TaskService();
-  List<Task> tasks = [];  // ← Liste vide au départ
-  bool _isLoading = true;
-  String? _errorMessage;
+  // ================================
+  // VARIABLES
+  // ================================
+  final TaskService _taskService = TaskService();  // Service pour appeler l'API
+  
+  List<Task> tasks = [];  // Liste complète des tâches
+  List<Task> _filteredTasks = [];  // ✅ Liste filtrée pour la recherche
+  
+  bool _isLoading = true;  // Indicateur de chargement
+  String? _errorMessage;  // Message d'erreur si l'API échoue
+  
+  final TextEditingController _searchController = TextEditingController();  // ✅ Controller pour la barre de recherche
 
-  // ✅ NOUVEAU : Charger au démarrage
+  // ================================
+  // CYCLE DE VIE : Initialisation
+  // Appelé une seule fois au démarrage
+  // ================================
   @override
   void initState() {
     super.initState();
-    _loadTasks();
+    _loadTasks();  // Charger les tâches au démarrage
   }
 
-  // ✅ NOUVEAU : Fonction pour charger les tâches
+  // ================================
+  // CYCLE DE VIE : Nettoyage
+  // Appelé quand le widget est détruit
+  // ================================
+  @override
+  void dispose() {
+    _searchController.dispose();  // ✅ Libérer la mémoire du controller
+    super.dispose();
+  }
+
+  // ================================
+  // FONCTION : Charger les tâches depuis l'API
+  // ================================
   Future<void> _loadTasks() async {
+    // Afficher le loader
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
+      // Appel API pour récupérer les tâches
       final tasksData = await _taskService.getTasks();
+      
+      // Convertir les données JSON en objets Task
       setState(() {
         tasks = tasksData.map((json) => Task.fromJson(json)).toList();
+        _filteredTasks = tasks;  // ✅ Initialiser la liste filtrée
         _isLoading = false;
       });
     } catch (e) {
+      // En cas d'erreur, afficher un message
       setState(() {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
         _isLoading = false;
@@ -49,16 +80,39 @@ class _TaskListScreenState extends State<TaskListScreen> {
   }
 
   // ================================
-  // FONCTION : Obtenir la couleur
+  // ✅ FONCTION : Filtrer les tâches selon la recherche
+  // ================================
+  void _filterTasks(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        // Si la recherche est vide, afficher toutes les tâches
+        _filteredTasks = tasks;
+      } else {
+        // Sinon, filtrer par titre ou description
+        _filteredTasks = tasks.where((task) {
+          final titleLower = task.title.toLowerCase();
+          final descriptionLower = task.description.toLowerCase();
+          final searchLower = query.toLowerCase();
+          
+          // Retourne true si le titre OU la description contient la recherche
+          return titleLower.contains(searchLower) || 
+                 descriptionLower.contains(searchLower);
+        }).toList();
+      }
+    });
+  }
+
+  // ================================
+  // FONCTION : Obtenir la couleur selon la priorité
   // ================================
   Color _getPriorityColor(String priority) {
     switch (priority) {
       case 'high':
-        return AppColors.priorityHigh;
+        return AppColors.priorityHigh;  // Rouge
       case 'medium':
-        return AppColors.priorityMedium;
+        return AppColors.priorityMedium;  // Orange
       case 'low':
-        return AppColors.priorityLow;
+        return AppColors.priorityLow;  // Vert
       default:
         return AppColors.priorityLow;
     }
@@ -70,15 +124,16 @@ class _TaskListScreenState extends State<TaskListScreen> {
       backgroundColor: AppColors.backgroundLight,
 
       // ================================
-      // EN-TÊTE
+      // EN-TÊTE (AppBar)
       // ================================
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: false,  // Pas de bouton retour
 
         title: const Row(
           children: [
+            // Avatar avec initiales
             CircleAvatar(
               backgroundColor: AppColors.primary,
               child: Text(
@@ -92,6 +147,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
             SizedBox(width: 12),
 
+            // Texte de bienvenue
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -116,6 +172,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
         ),
 
         actions: [
+          // Bouton notifications (non fonctionnel pour l'instant)
           IconButton(
             icon: const Icon(
               Icons.notifications_outlined,
@@ -124,6 +181,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
             onPressed: () {},
           ),
 
+          // Bouton menu (non fonctionnel pour l'instant)
           IconButton(
             icon: const Icon(
               Icons.more_vert,
@@ -140,7 +198,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
       body: Column(
         children: [
 
-          // Container blanc pour titre et recherche
+          // ================================
+          // SECTION : Titre et recherche
+          // ================================
           Container(
             color: Colors.white,
             padding: const EdgeInsets.all(20),
@@ -148,6 +208,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
 
+                // Titre "Mes tâches"
                 const Text(
                   'Mes tâches',
                   style: TextStyle(
@@ -159,13 +220,26 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                 const SizedBox(height: 16),
 
+                // ✅ Barre de recherche (fonctionnelle)
                 TextField(
+                  controller: _searchController,  // Controller pour gérer le texte
+                  onChanged: _filterTasks,  // Appelé à chaque changement de texte
                   decoration: InputDecoration(
                     hintText: 'Rechercher une tâche...',
                     prefixIcon: const Icon(
                       Icons.search,
                       color: AppColors.textMedium,
                     ),
+                    // ✅ Bouton pour effacer la recherche
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, color: AppColors.textMedium),
+                            onPressed: () {
+                              _searchController.clear();  // Vider le champ
+                              _filterTasks('');  // Réinitialiser le filtre
+                            },
+                          )
+                        : null,
                     filled: true,
                     fillColor: AppColors.backgroundLight,
                     border: OutlineInputBorder(
@@ -177,6 +251,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                 const SizedBox(height: 16),
 
+                // Compteur de tâches
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -189,7 +264,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                       ),
                     ),
                     Text(
-                      '${tasks.length} tâches',
+                      '${_filteredTasks.length} tâches',  // ✅ Affiche le nombre de tâches filtrées
                       style: const TextStyle(
                         fontSize: 14,
                         color: AppColors.textMedium,
@@ -202,16 +277,18 @@ class _TaskListScreenState extends State<TaskListScreen> {
           ),
 
           // ================================
-          // LISTE DES TÂCHES
-          // ✅ MODIFIÉ : Affichage conditionnel
+          // SECTION : Liste des tâches
+          // Affichage conditionnel selon l'état
           // ================================
           Expanded(
             child: _isLoading
+                // ✅ État 1 : Chargement en cours
                 ? const Center(
                     child: CircularProgressIndicator(
                       color: AppColors.primary,
                     ),
                   )
+                // ✅ État 2 : Erreur réseau/API
                 : _errorMessage != null
                     ? Center(
                         child: Column(
@@ -248,42 +325,58 @@ class _TaskListScreenState extends State<TaskListScreen> {
                           ],
                         ),
                       )
-                    : tasks.isEmpty
-                        ? const Center(
+                    // ✅ État 3 : Aucune tâche (vide OU aucun résultat de recherche)
+                    : _filteredTasks.isEmpty
+                        ? Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(
-                                  Icons.task_outlined,
+                                  _searchController.text.isEmpty 
+                                      ? Icons.task_outlined  // Aucune tâche du tout
+                                      : Icons.search_off,  // ✅ Aucun résultat de recherche
                                   size: 64,
                                   color: AppColors.textMedium,
                                 ),
-                                SizedBox(height: 16),
+                                const SizedBox(height: 16),
                                 Text(
-                                  'Aucune tâche pour le moment',
-                                  style: TextStyle(
+                                  _searchController.text.isEmpty
+                                      ? 'Aucune tâche pour le moment'
+                                      : 'Aucune tâche trouvée',  // ✅ Message différent
+                                  style: const TextStyle(
                                     color: AppColors.textMedium,
                                     fontSize: 16,
                                   ),
                                 ),
-                                SizedBox(height: 8),
-                                Text(
-                                  'Appuyez sur + pour ajouter une tâche',
-                                  style: TextStyle(
-                                    color: AppColors.textMedium,
-                                    fontSize: 14,
+                                const SizedBox(height: 8),
+                                // ✅ Afficher conseil ou bouton selon le cas
+                                if (_searchController.text.isEmpty)
+                                  const Text(
+                                    'Appuyez sur + pour ajouter une tâche',
+                                    style: TextStyle(
+                                      color: AppColors.textMedium,
+                                      fontSize: 14,
+                                    ),
                                   ),
-                                ),
+                                if (_searchController.text.isNotEmpty)
+                                  TextButton(
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      _filterTasks('');
+                                    },
+                                    child: const Text('Effacer la recherche'),
+                                  ),
                               ],
                             ),
                           )
+                        // ✅ État 4 : Liste des tâches (avec pull to refresh)
                         : RefreshIndicator(
-                            onRefresh: _loadTasks,
+                            onRefresh: _loadTasks,  // Recharger en tirant vers le bas
                             child: ListView.builder(
                               padding: const EdgeInsets.all(16),
-                              itemCount: tasks.length,
+                              itemCount: _filteredTasks.length,  // ✅ Nombre de tâches filtrées
                               itemBuilder: (context, index) {
-                                final task = tasks[index];
+                                final task = _filteredTasks[index];  // ✅ Tâche filtrée
                                 return _buildTaskCard(task);
                               },
                             ),
@@ -295,121 +388,155 @@ class _TaskListScreenState extends State<TaskListScreen> {
   }
 
   // ================================
-  // FONCTION : Construire une carte de tâche
+  // WIDGET : Carte d'une tâche
   // ================================
   Widget _buildTaskCard(Task task) {
-  return Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.05),
-          blurRadius: 10,
-          offset: const Offset(0, 2),
-        ),
-      ],
-    ),
-    child: IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // 1. LA BARRE
-          Container(
-            width: 6,
-            decoration: BoxDecoration(
-              color: _getPriorityColor(task.priority),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                bottomLeft: Radius.circular(12),
-              ),
-            ),
-          ),
-
-          // 2. LE RESTE DU CONTENU
-          Expanded(
-            child: InkWell(  // ← AJOUTE ICI
-              onTap: () {
-                print('🔵 Tâche cliquée : ${task.title}');
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => TaskDetailScreen(task: task),
-                  ),
-                ).then((_) => _loadTasks());
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            task.title,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textDark,
-                              decoration: task.isCompleted ? TextDecoration.lineThrough : null,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            task.description,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppColors.textMedium,
-                              decoration: task.isCompleted ? TextDecoration.lineThrough : null,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Icon(Icons.access_time, size: 16, color: AppColors.textMedium),
-                              const SizedBox(width: 4),
-                              Text(
-                                task.getFormattedDate(),
-                                style: const TextStyle(fontSize: 12, color: AppColors.textMedium),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Checkbox
-                    Checkbox(
-                      value: task.isCompleted,
-                      onChanged: (bool? value) async {
-                        try {
-                          await _taskService.toggleTaskComplete(task.id);
-                          _loadTasks();
-                        } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(e.toString().replaceAll('Exception: ', '')),
-                                backgroundColor: AppColors.priorityHigh,
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      activeColor: AppColors.primary,
-                    ),
-                  ],
-                ),
-              ),
-            ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-    ),
-  );
-}
+      // IntrinsicHeight permet à la barre colorée de prendre toute la hauteur
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ================================
+            // BARRE COLORÉE (selon priorité)
+            // ================================
+            Container(
+              width: 6,
+              decoration: BoxDecoration(
+                color: _getPriorityColor(task.priority),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  bottomLeft: Radius.circular(12),
+                ),
+              ),
+            ),
+
+            // ================================
+            // CONTENU DE LA CARTE
+            // ================================
+            Expanded(
+              child: InkWell(
+                // ✅ Rendre la carte cliquable
+                onTap: () {
+                  print('🔵 Tâche cliquée : ${task.title}');
+                  // Navigation vers l'écran de détails
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TaskDetailScreen(task: task),
+                    ),
+                  ).then((_) => _loadTasks());  // Recharger après retour
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      // ================================
+                      // INFORMATIONS DE LA TÂCHE
+                      // ================================
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Titre de la tâche
+                            Text(
+                              task.title,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textDark,
+                                // Barré si terminée
+                                decoration: task.isCompleted 
+                                    ? TextDecoration.lineThrough 
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            
+                            // Description (1 ligne max)
+                            Text(
+                              task.description,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppColors.textMedium,
+                                decoration: task.isCompleted 
+                                    ? TextDecoration.lineThrough 
+                                    : null,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,  // ... si trop long
+                            ),
+                            const SizedBox(height: 8),
+                            
+                            // Date et heure
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.access_time, 
+                                  size: 16, 
+                                  color: AppColors.textMedium,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  task.getFormattedDate(),
+                                  style: const TextStyle(
+                                    fontSize: 12, 
+                                    color: AppColors.textMedium,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // ================================
+                      // CHECKBOX (marquer complété)
+                      // ================================
+                      Checkbox(
+                        value: task.isCompleted,
+                        onChanged: (bool? value) async {
+                          try {
+                            // Appel API pour toggle le statut
+                            await _taskService.toggleTaskComplete(task.id);
+                            // Recharger la liste
+                            _loadTasks();
+                          } catch (e) {
+                            // Afficher l'erreur
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    e.toString().replaceAll('Exception: ', ''),
+                                  ),
+                                  backgroundColor: AppColors.priorityHigh,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        activeColor: AppColors.primary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
