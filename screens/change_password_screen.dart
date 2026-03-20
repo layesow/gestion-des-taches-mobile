@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
+import '../services/api/auth_service.dart';  // ← AJOUTÉ
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -10,6 +11,15 @@ class ChangePasswordScreen extends StatefulWidget {
 
 class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
+  // ================================
+  // Service API et état de chargement
+  // ================================
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;
+
+  // ================================
+  // Controllers pour les champs
+  // ================================
   final TextEditingController _currentPasswordController = 
       TextEditingController();
   final TextEditingController _newPasswordController = 
@@ -17,11 +27,25 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final TextEditingController _confirmPasswordController = 
       TextEditingController();
 
+  // ================================
+  // Visibilité des mots de passe
+  // ================================
   bool _currentPasswordVisible = false;
   bool _newPasswordVisible = false;
   bool _confirmPasswordVisible = false;
 
-  void _changePassword() {
+  @override
+  void dispose() {
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  // ================================
+  // Fonction pour changer le mot de passe
+  // ================================
+  Future<void> _changePassword() async {
     // Validation
     if (_currentPasswordController.text.isEmpty) {
       _showError('Le mot de passe actuel est obligatoire');
@@ -48,17 +72,45 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       return;
     }
 
-    // Plus tard on enverra à l'API Laravel
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Mot de passe modifié avec succès !'),
-        backgroundColor: AppColors.priorityLow,
-      ),
-    );
+    setState(() {
+      _isLoading = true;
+    });
 
-    Navigator.pop(context);
+    try {
+      // ✅ Appel API pour changer le mot de passe
+      await _authService.changePassword(
+        currentPassword: _currentPasswordController.text,
+        newPassword: _newPasswordController.text,
+      );
+
+      if (mounted) {
+        // Message de succès
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Mot de passe modifié avec succès !'),
+            backgroundColor: AppColors.priorityLow,
+          ),
+        );
+
+        // Retour en arrière
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showError(e.toString().replaceAll('Exception: ', ''));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
+  // ================================
+  // Afficher un message d'erreur
+  // ================================
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -73,6 +125,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
 
+      // ================================
+      // BARRE DU HAUT
+      // ================================
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -102,7 +157,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
             const SizedBox(height: 20),
 
-            // Illustration
+            // ================================
+            // ILLUSTRATION
+            // ================================
             Center(
               child: Container(
                 width: 120,
@@ -121,7 +178,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
             const SizedBox(height: 32),
 
-            // Titre
+            // ================================
+            // TITRE ET DESCRIPTION
+            // ================================
             const Text(
               'Modifier votre mot de passe',
               style: TextStyle(
@@ -133,7 +192,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
             const SizedBox(height: 8),
 
-            // Description
             const Text(
               'Assurez-vous que votre nouveau mot de passe est sécurisé',
               style: TextStyle(
@@ -144,7 +202,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
             const SizedBox(height: 32),
 
-            // Mot de passe actuel
+            // ================================
+            // MOT DE PASSE ACTUEL
+            // ================================
             const Text(
               'Mot de passe actuel',
               style: TextStyle(
@@ -186,7 +246,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
             const SizedBox(height: 20),
 
-            // Nouveau mot de passe
+            // ================================
+            // NOUVEAU MOT DE PASSE
+            // ================================
             const Text(
               'Nouveau mot de passe',
               style: TextStyle(
@@ -228,7 +290,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
             const SizedBox(height: 20),
 
-            // Confirmer mot de passe
+            // ================================
+            // CONFIRMER MOT DE PASSE
+            // ================================
             const Text(
               'Confirmer le nouveau mot de passe',
               style: TextStyle(
@@ -270,7 +334,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
             const SizedBox(height: 16),
 
-            // Indication de sécurité
+            // ================================
+            // CRITÈRES DE SÉCURITÉ
+            // ================================
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -315,9 +381,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
             const SizedBox(height: 32),
 
-            // Boutons
+            // ================================
+            // BOUTONS
+            // ================================
             Row(
               children: [
+                // Bouton Annuler
                 Expanded(
                   child: SizedBox(
                     height: 56,
@@ -348,25 +417,35 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
                 const SizedBox(width: 12),
 
+                // Bouton Enregistrer
                 Expanded(
                   child: SizedBox(
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: _changePassword,
+                      onPressed: _isLoading ? null : _changePassword,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'Enregistrer',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'Enregistrer',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                     ),
                   ),
                 ),
