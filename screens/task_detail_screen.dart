@@ -4,7 +4,11 @@ import '../services/api/task_service.dart';
 import '../utils/constants.dart';
 import '../models/task_model.dart';
 
-class TaskDetailScreen extends StatelessWidget {
+// ================================
+// CHANGÉ : StatefulWidget au lieu de StatelessWidget
+// Pour pouvoir mettre à jour le statut de la tâche en temps réel
+// ================================
+class TaskDetailScreen extends StatefulWidget {
   // On reçoit la tâche à afficher
   final Task task;
 
@@ -13,7 +17,28 @@ class TaskDetailScreen extends StatelessWidget {
     required this.task,
   });
 
-  // Fonction pour obtenir la couleur
+  @override
+  State<TaskDetailScreen> createState() => _TaskDetailScreenState();
+}
+
+class _TaskDetailScreenState extends State<TaskDetailScreen> {
+  
+  // ================================
+  // Variable pour suivre l'état actuel de la tâche
+  // Peut changer quand on toggle le statut
+  // ================================
+  late Task currentTask;
+  
+  @override
+  void initState() {
+    super.initState();
+    // Copie initiale de la tâche reçue
+    currentTask = widget.task;
+  }
+
+  // ================================
+  // FONCTION : Obtenir la couleur selon la priorité
+  // ================================
   Color _getPriorityColor(String priority) {
     switch (priority) {
       case 'high':
@@ -27,7 +52,9 @@ class TaskDetailScreen extends StatelessWidget {
     }
   }
 
-  // Fonction pour obtenir le texte de priorité
+  // ================================
+  // FONCTION : Obtenir le texte de priorité
+  // ================================
   String _getPriorityText(String priority) {
     switch (priority) {
       case 'high':
@@ -84,11 +111,11 @@ class TaskDetailScreen extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => EditTaskScreen(task: task),
+                  builder: (context) => EditTaskScreen(task: currentTask),
                 ),
               ).then((_) {
                 // Après modification, retour à la liste
-                Navigator.pop(context);
+                Navigator.pop(context, true);
               });
             },
           ),
@@ -100,46 +127,36 @@ class TaskDetailScreen extends StatelessWidget {
               color: AppColors.priorityHigh,
             ),
             onPressed: () {
-              final rootContext = context; // context de TaskDetailScreen
-
+              // Afficher une boîte de dialogue de confirmation
               showDialog(
                 context: context,
-                builder: (context) => AlertDialog(
+                builder: (dialogContext) => AlertDialog(
                   title: const Text('Supprimer la tâche'),
-                  content: const Text(
-                      'Êtes-vous sûr de vouloir supprimer cette tâche ?'),
+                  content: const Text('Êtes-vous sûr de vouloir supprimer cette tâche ?'),
                   actions: [
+                    // Bouton Annuler
                     TextButton(
                       onPressed: () {
-                        Navigator.pop(context); // ferme dialog
+                        Navigator.pop(dialogContext); // Ferme le dialog
                       },
                       child: const Text('Annuler'),
                     ),
+                    // Bouton Supprimer
                     TextButton(
                       onPressed: () async {
-                        Navigator.pop(context); // ferme dialog
+                        Navigator.pop(dialogContext); // Ferme le dialog
 
                         try {
-                          await TaskService().deleteTask(task.id);
+                          // Appel API pour supprimer la tâche
+                          await TaskService().deleteTask(currentTask.id);
 
-                          if (rootContext.mounted) {
-                            
-                            // ✅ Ferme TaskDetailScreen ET passe `true` pour indiquer succès
-                            Navigator.pop(rootContext, true);
-                            
-                            // ✅ Attendre un peu pour que UniqueKey fasse effet
-                            await Future.delayed(const Duration(milliseconds: 100));
-
-                            ScaffoldMessenger.of(rootContext).showSnackBar(
-                              const SnackBar(
-                                content: Text('Tâche supprimée avec succès'),
-                                backgroundColor: AppColors.priorityLow,
-                              ),
-                            );
+                          if (mounted) {
+                            // Retour à la liste avec indicateur de succès
+                            Navigator.pop(context, true);
                           }
-
                         } catch (e) {
-                          if (rootContext.mounted) {
+                          // Gestion des erreurs
+                          if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(e.toString().replaceAll('Exception: ', '')),
@@ -163,7 +180,7 @@ class TaskDetailScreen extends StatelessWidget {
       ),
 
       // ================================
-      // CONTENU
+      // CONTENU PRINCIPAL
       // ================================
       body: SingleChildScrollView(
         child: Column(
@@ -182,11 +199,11 @@ class TaskDetailScreen extends StatelessWidget {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: _getPriorityColor(task.priority),
+                  color: _getPriorityColor(currentTask.priority),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  _getPriorityText(task.priority),
+                  _getPriorityText(currentTask.priority),
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -199,13 +216,13 @@ class TaskDetailScreen extends StatelessWidget {
             const SizedBox(height: 8),
 
             // ================================
-            // TITRE
+            // TITRE DE LA TÂCHE
             // ================================
             Container(
               color: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text(
-                task.title,
+                currentTask.title,
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -225,6 +242,7 @@ class TaskDetailScreen extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 8),
               child: Row(
                 children: [
+                  // Icône d'horloge
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -240,6 +258,7 @@ class TaskDetailScreen extends StatelessWidget {
 
                   const SizedBox(width: 16),
 
+                  // Date limite
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -252,7 +271,7 @@ class TaskDetailScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        task.getFormattedDate(),
+                        currentTask.getFormattedDate(),
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -287,7 +306,7 @@ class TaskDetailScreen extends StatelessWidget {
                   const SizedBox(height: 12),
 
                   Text(
-                    task.description,
+                    currentTask.description,
                     style: const TextStyle(
                       fontSize: 16,
                       color: AppColors.textMedium,
@@ -301,7 +320,7 @@ class TaskDetailScreen extends StatelessWidget {
             const SizedBox(height: 8),
 
             // ================================
-            // STATUT
+            // STATUT DE LA TÂCHE
             // ================================
             Container(
               color: Colors.white,
@@ -318,21 +337,22 @@ class TaskDetailScreen extends StatelessWidget {
                     ),
                   ),
 
+                  // Badge du statut (Terminée / En cours)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: task.isCompleted
+                      color: currentTask.isCompleted
                           ? AppColors.priorityLow.withOpacity(0.2)
                           : AppColors.priorityHigh.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      task.isCompleted ? 'Terminée' : 'En cours',
+                      currentTask.isCompleted ? 'Terminée' : 'En cours',
                       style: TextStyle(
-                        color: task.isCompleted
+                        color: currentTask.isCompleted
                             ? AppColors.priorityLow
                             : AppColors.priorityHigh,
                         fontWeight: FontWeight.bold,
@@ -349,7 +369,8 @@ class TaskDetailScreen extends StatelessWidget {
       ),
 
       // ================================
-      // BOUTON EN BAS
+      // BOUTON EN BAS DE L'ÉCRAN
+      // Pour marquer la tâche comme terminée ou non terminée
       // ================================
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(20),
@@ -367,12 +388,51 @@ class TaskDetailScreen extends StatelessWidget {
           width: double.infinity,
           height: 56,
           child: ElevatedButton(
-            onPressed: () {
-              // Marquer comme terminée
-              // On fera ça plus tard !
+            onPressed: () async {
+              try {
+                // Appel API pour toggle le statut
+                await TaskService().toggleTaskComplete(currentTask.id);
+                
+                // ✅ Met à jour l'état local immédiatement
+                setState(() {
+                  currentTask = Task(
+                    id: currentTask.id,
+                    title: currentTask.title,
+                    description: currentTask.description,
+                    dateTime: currentTask.dateTime,
+                    priority: currentTask.priority,
+                    isCompleted: !currentTask.isCompleted,  // Inverse le statut
+                  );
+                });
+                
+                // Afficher un message de confirmation
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        currentTask.isCompleted 
+                          ? 'Tâche marquée comme terminée'
+                          : 'Tâche marquée comme non terminée',
+                      ),
+                      backgroundColor: AppColors.priorityLow,
+                    ),
+                  );
+                }
+              } catch (e) {
+                // Gestion des erreurs
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(e.toString().replaceAll('Exception: ', '')),
+                      backgroundColor: AppColors.priorityHigh,
+                    ),
+                  );
+                }
+              }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: task.isCompleted
+              // Couleur selon le statut
+              backgroundColor: currentTask.isCompleted
                   ? AppColors.textMedium
                   : AppColors.primary,
               shape: RoundedRectangleBorder(
@@ -380,7 +440,8 @@ class TaskDetailScreen extends StatelessWidget {
               ),
             ),
             child: Text(
-              task.isCompleted
+              // Texte selon le statut
+              currentTask.isCompleted
                   ? 'Marquer comme non terminée'
                   : 'Marquer comme terminée',
               style: const TextStyle(
