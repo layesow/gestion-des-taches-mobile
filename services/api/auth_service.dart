@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'api_client.dart';
 import '../storage/token_storage.dart';
+import '../storage/cache_service.dart';  // ← AJOUTÉ
 
 /// Service d'authentification
-/// Gère : inscription, connexion, déconnexion, profil
+/// Gère : inscription, connexion, déconnexion, profil + Cache local
 class AuthService {
   final ApiClient _client = ApiClient();
 
@@ -30,6 +32,7 @@ class AuthService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 201) {
+        // ✅ Sauvegarder le token
         await TokenStorage.saveToken(data['token']);
         return data;
       } else {
@@ -58,6 +61,7 @@ class AuthService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
+        // ✅ Sauvegarder le token
         await TokenStorage.saveToken(data['token']);
         return data;
       } else {
@@ -76,14 +80,19 @@ class AuthService {
         Uri.parse('${ApiClient.baseUrl}/logout'),
         headers: headers,
       );
-      await TokenStorage.deleteToken();
     } catch (e) {
+      print('⚠️ Erreur logout API : $e');
+    } finally {
+      // ✅ Toujours supprimer le token ET vider le cache
       await TokenStorage.deleteToken();
-      throw Exception('Erreur lors de la déconnexion : $e');
+      await CacheService.clearAll();  // ← AJOUTÉ
+      print('🗑️ Token et cache vidés');
     }
   }
 
   /// Récupérer le profil de l'utilisateur connecté
+  /// 1. Essaie depuis l'API
+  /// 2. Si pas internet → Charge depuis le cache
   Future<Map<String, dynamic>> getUser() async {
     try {
       final headers = await _client.headersWithAuth;
@@ -95,11 +104,33 @@ class AuthService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
+        // ✅ Sauvegarder le profil dans le cache
+        await CacheService.saveUser(data['user']);
+        print('✅ Profil récupéré et mis en cache');
         return data;
       } else {
         throw Exception('Erreur lors de la récupération du profil');
       }
+    } on SocketException {
+      // ✅ Pas de connexion → Charger depuis le cache
+      print('📵 Pas de connexion → Profil depuis le cache');
+      
+      final cachedUser = CacheService.getUser();
+      if (cachedUser != null) {
+        // Retourner dans le même format que l'API
+        return {'user': cachedUser};
+      } else {
+        throw Exception('Pas de connexion et aucun profil en cache');
+      }
     } catch (e) {
+      // ✅ Autre erreur → Essayer le cache
+      print('❌ Erreur API → Tentative depuis le cache : $e');
+      
+      final cachedUser = CacheService.getUser();
+      if (cachedUser != null) {
+        return {'user': cachedUser};
+      }
+      
       throw Exception('Erreur de connexion : $e');
     }
   }
@@ -125,6 +156,13 @@ class AuthService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
+        // ✅ Mettre à jour le cache du profil
+        await CacheService.saveUser({
+          'name': name,
+          'email': email,
+          'phone': phone,
+        });
+        print('✅ Profil mis à jour et cache rafraîchi');
         return data;
       } else {
         throw Exception(data['message'] ?? 'Erreur lors de la mise à jour');
